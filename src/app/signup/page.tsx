@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import eccrypto from "eccrypto";
 import { API_BASE_URL } from "@/lib/config";
 import { hashPassword } from "@/lib/authUtils";
 
@@ -33,15 +34,26 @@ export default function SignupPage() {
 
     try {
       const hashedPassword = await hashPassword(password);
+
+      // Generate a new ECC key pair
+      const privateKey = eccrypto.generatePrivate();
+      const publicKey = eccrypto.getPublic(privateKey);
+
       const response = await fetch(`${API_BASE_URL}/api/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password: hashedPassword }),
+        body: JSON.stringify({
+          username,
+          password: hashedPassword,
+          publicKey: publicKey.toString("hex"), // Send public key as a hex string
+        }),
       });
 
       if (response.ok) {
+        // Save private key to local storage
+        localStorage.setItem("privateKey", privateKey.toString("hex"));
         router.push("/login"); // Redirect to login page after successful signup
       } else {
         const data = await response.json();

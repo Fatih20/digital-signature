@@ -5,7 +5,11 @@ import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
-    const { username, password: hashedPassword } = await request.json();
+    const {
+      username,
+      password: hashedPassword,
+      publicKey,
+    } = await request.json();
 
     if (!username || !hashedPassword) {
       return NextResponse.json(
@@ -33,6 +37,7 @@ export async function POST(request: Request) {
     await db.insert(usersTable).values({
       name: username,
       password: hashedPassword,
+      publicKey,
     });
 
     return NextResponse.json(

@@ -15,6 +15,13 @@
       "when": 1746868507362,
       "tag": "0001_daffy_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1746869626303,
+      "tag": "0002_bored_mordo",
+      "breakpoints": true
     }
   ]
 }
