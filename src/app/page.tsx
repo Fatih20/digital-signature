@@ -37,13 +37,16 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Welcome!</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 to-blue-500 p-4 text-white">
+      <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-8 sm:p-10 rounded-xl shadow-2xl text-center max-w-md w-full">
+        <h1 className="text-5xl font-bold mb-8 text-white">Welcome!</h1>
+        <p className="text-lg mb-10 text-gray-200">
+          You have successfully logged in.
+        </p>
         <form onSubmit={handleLogout}>
           <button
             type="submit"
-            className="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600"
+            className="w-full bg-red-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition duration-150 ease-in-out shadow-md hover:shadow-lg"
           >
             Logout
           </button>
