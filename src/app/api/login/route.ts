@@ -1,75 +1,64 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import db from "@/db";
+import db from "@/db"; // default import for Drizzle instance
 import { usersTable } from "@/db/schema";
-import { SignJWT } from "jose";
-import bcrypt from "bcrypt";
+import { eq } from "drizzle-orm";
+// Note: 'cookies' from 'next/headers' is not directly used for setting in this revised version.
+// We use response.cookies.set() instead.
 
 export async function POST(request: Request) {
   try {
-    // Parse the request body
-    const body = await request.json();
-    const { name, password } = body;
+    const { username, password: hashedPasswordFromClient } =
+      await request.json();
 
-    // Validate the request body
-    if (!name || !password) {
+    if (!username || !hashedPasswordFromClient) {
       return NextResponse.json(
-        { error: "Name and password are required" },
+        { error: "Username and password are required" },
         { status: 400 }
       );
     }
 
-    // Find user in database
-    const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.name, name),
+    // Find user in database by username (which corresponds to the 'name' field in schema)
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.name, username))
+      .limit(1);
+
+    if (users.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    const user = users[0];
+
+    // Compare the hashed password from the client with the stored hashed password
+    // Since passwords are now hashed client-side, we do a direct comparison.
+    if (user.password !== hashedPasswordFromClient) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    // If credentials are valid, set session cookie
+    const response = NextResponse.json({
+      success: true,
+      message: "Login successful",
+    });
+    response.cookies.set("session", "authenticated", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
-
-    // Verify password using bcrypt
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
-
-    // Generate JWT token
-    const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET || "default-secret-key"
-    );
-    const token = await new SignJWT({ userId: user.id, name: user.name })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("24h")
-      .sign(secret);
-
-    return NextResponse.json(
-      {
-        message: "Login successful",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-        },
-      },
-      {
-        status: 200,
-        headers: {
-          "Set-Cookie": `token=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
-        },
-      }
-    );
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error during login" },
       { status: 500 }
     );
   }

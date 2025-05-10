@@ -8,6 +8,13 @@
       "when": 1746598915911,
       "tag": "0000_little_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1746868507362,
+      "tag": "0001_daffy_cerise",
+      "breakpoints": true
     }
   ]
 }

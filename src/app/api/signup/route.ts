@@ -1,62 +1,48 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import bcrypt from "bcrypt";
 import db from "@/db";
 import { usersTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
-    // Parse the request body
-    const body = await request.json();
-    const { name, password } = body;
+    const { username, password: hashedPassword } = await request.json();
 
-    // Validate the request body
-    if (!name || !password) {
+    if (!username || !hashedPassword) {
       return NextResponse.json(
-        { error: "Name and password are required" },
+        { error: "Username and password are required" },
         { status: 400 }
       );
     }
 
     // Check if user already exists
-    const existingUser = await db.query.usersTable.findFirst({
-      where: eq(usersTable.name, name),
-    });
+    const existingUser = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.name, username))
+      .limit(1);
 
-    if (existingUser) {
+    if (existingUser.length > 0) {
       return NextResponse.json(
         { error: "User already exists" },
-        { status: 409 }
+        { status: 409 } // Conflict
       );
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create new user
-    const [newUser] = await db
-      .insert(usersTable)
-      .values({
-        name,
-        password: hashedPassword,
-      })
-      .returning();
+    // Insert new user
+    // The password is already hashed on the client-side
+    await db.insert(usersTable).values({
+      name: username,
+      password: hashedPassword,
+    });
 
     return NextResponse.json(
-      {
-        message: "User created successfully",
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-        },
-      },
+      { success: true, message: "User created successfully" },
       { status: 201 }
     );
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error during signup" },
       { status: 500 }
     );
   }
