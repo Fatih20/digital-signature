@@ -5,47 +5,80 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/config";
 import { hashPassword } from "@/lib/authUtils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Define the type for the login payload
+interface LoginPayload {
+  username: string;
+  passwordHash: string;
+}
+
+// Define the type for the API response (can be more specific if known)
+interface LoginResponse {
+  // Assuming a successful login doesn't return much, or you might have a user object
+  message?: string;
+  error?: string; // For error responses
+}
+
+// Asynchronous function to perform the login API call
+const loginUser = async (payload: LoginPayload): Promise<LoginResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: payload.username,
+      password: payload.passwordHash,
+    }),
+  });
+
+  const data: LoginResponse = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Login failed. Please try again.");
+  }
+  return data;
+};
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const loginMutation = useMutation<LoginResponse, Error, LoginPayload>({
+    mutationFn: loginUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      router.push("/");
+    },
+    onError: (error) => {
+      setFormError(error.message);
+    },
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
+    setFormError(null);
 
     if (!username || !password) {
-      setError("Username and password are required.");
-      setIsLoading(false);
+      setFormError("Username and password are required.");
       return;
     }
 
     try {
       const hashedPassword = await hashPassword(password);
-      const response = await fetch(`${API_BASE_URL}/api/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password: hashedPassword }),
-      });
-
-      if (response.ok) {
-        router.push("/");
-      } else {
-        const data = await response.json();
-        setError(data.error || "Login failed. Please try again.");
-      }
+      loginMutation.mutate({ username, passwordHash: hashedPassword });
     } catch (err) {
-      console.error("Login submission error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      console.error("Password hashing error:", err);
+      setFormError(
+        "An unexpected error occurred during login preparation. Please try again."
+      );
     }
-    setIsLoading(false);
   }
+
+  const isLoading = loginMutation.isPending;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 to-blue-500 p-4">
@@ -59,9 +92,9 @@ export default function LoginPage() {
             Login to Your Account
           </h2>
           <form onSubmit={handleSubmit}>
-            {error && (
+            {(formError || loginMutation.error) && (
               <p className="mb-4 text-red-600 bg-red-100 p-3 rounded-md text-sm text-center border border-red-300">
-                {error}
+                {formError || (loginMutation.error as Error)?.message}
               </p>
             )}
             <div className="mb-5">

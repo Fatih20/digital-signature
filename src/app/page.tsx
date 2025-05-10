@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/config";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface User {
   id: number;
@@ -10,89 +11,110 @@ interface User {
   publicKey: string;
 }
 
+interface FetchError extends Error {
+  status?: number;
+}
+
+interface ApiErrorResponse {
+  status: number;
+  error: string;
+}
+
+const fetchCurrentUser = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/me`);
+  if (!response.ok) {
+    if (response.status === 401) {
+      return { status: 401, error: "Unauthorized" };
+    }
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch current user: ${response.status} ${errorText}`
+    );
+  }
+  return response.json();
+};
+
+const fetchUsers = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/users`);
+  if (!response.ok) {
+    if (response.status === 401) {
+      return { status: 401, error: "Unauthorized" };
+    }
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch users: ${response.status} ${errorText}`);
+  }
+  return response.json();
+};
+
 export default function Home() {
   const router = useRouter();
-  const [username, setUsername] = useState<string | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Centralized data loading function
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    let redirectToLogin = false;
+  const {
+    data: currentUserResponse,
+    isLoading: isLoadingCurrentUser,
+    error: currentUserError,
+    refetch: refetchCurrentUser,
+    isError: isCurrentUserError,
+  } = useQuery<User | ApiErrorResponse, FetchError>({
+    queryKey: ["currentUser"],
+    queryFn: fetchCurrentUser,
+    retry: 1,
+  });
 
-    try {
-      // Fetch current user's username
-      const meResponse = await fetch(`${API_BASE_URL}/api/me`);
-      if (meResponse.ok) {
-        const data = await meResponse.json();
-        if (data.username) {
-          setUsername(data.username);
-        }
-      } else if (meResponse.status === 401) {
-        redirectToLogin = true;
-      } else {
-        console.error(
-          "Failed to fetch username:",
-          meResponse.status,
-          await meResponse.text()
-        );
-        setError(
-          (prevError) =>
-            prevError || "Failed to load your profile. Please try again."
-        );
-      }
+  const {
+    data: usersResponse,
+    isLoading: isLoadingUsers,
+    error: usersError,
+    refetch: refetchUsers,
+    isError: isUsersError,
+  } = useQuery<User[] | ApiErrorResponse, FetchError>({
+    queryKey: ["users"],
+    queryFn: fetchUsers,
+    enabled:
+      !!currentUserResponse &&
+      !("status" in currentUserResponse && currentUserResponse.status === 401),
+    retry: 1,
+  });
 
-      if (redirectToLogin) {
-        router.push("/login");
-        setIsLoading(false); // Stop loading before redirect
-        return;
-      }
+  const username =
+    currentUserResponse && !("status" in currentUserResponse)
+      ? currentUserResponse.username
+      : undefined;
+  const users: User[] =
+    usersResponse && Array.isArray(usersResponse) ? usersResponse : [];
 
-      // Fetch other users
-      const usersResponse = await fetch(`${API_BASE_URL}/api/users`);
-      if (usersResponse.ok) {
-        const usersData = await usersResponse.json();
-        setUsers(usersData);
-      } else if (usersResponse.status === 401) {
-        redirectToLogin = true; // Mark for redirect
-      } else {
-        console.error(
-          "Failed to fetch users:",
-          usersResponse.status,
-          await usersResponse.text()
-        );
-        setError(
-          (prevError) =>
-            prevError || "Failed to load users list. Please try again."
-        );
-      }
-
-      if (redirectToLogin) {
-        router.push("/login");
-        setIsLoading(false); // Stop loading before redirect
-        return;
-      }
-    } catch (e) {
-      console.error("Failed to fetch data:", e);
-      setError("An unexpected error occurred. Please try refreshing.");
+  useEffect(() => {
+    if (
+      currentUserResponse &&
+      "status" in currentUserResponse &&
+      currentUserResponse.status === 401
+    ) {
+      router.push("/login");
+    } else if (
+      isCurrentUserError &&
+      currentUserError instanceof Error &&
+      currentUserError.message.includes("Failed to fetch")
+    ) {
     }
-    setIsLoading(false);
-  }, [router, setUsername, setUsers, setIsLoading, setError]);
+  }, [currentUserResponse, isCurrentUserError, currentUserError, router]);
 
   useEffect(() => {
-    console.log(users);
+    if (
+      usersResponse &&
+      "status" in usersResponse &&
+      usersResponse.status === 401
+    ) {
+      router.push("/login");
+    }
+  }, [usersResponse, router]);
+
+  useEffect(() => {
+    if (users.length > 0) {
+    }
   }, [users]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData, error]);
 
   async function handleLogout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     try {
       const response = await fetch(`${API_BASE_URL}/api/logout`, {
         method: "POST",
@@ -112,10 +134,53 @@ export default function Home() {
     router.push("/login");
   }
 
-  // Handler for the "Try Again" button
   const handleTryAgainClick = () => {
-    loadData(); // Simply call the centralized loading function
+    if (
+      isCurrentUserError ||
+      (currentUserResponse && "status" in currentUserResponse)
+    ) {
+      refetchCurrentUser();
+    }
+    if (isUsersError || (usersResponse && "status" in usersResponse)) {
+      refetchUsers();
+    } else if (
+      !isLoadingCurrentUser &&
+      currentUserResponse &&
+      !("status" in currentUserResponse)
+    ) {
+      refetchUsers();
+    }
   };
+
+  const isLoading =
+    isLoadingCurrentUser ||
+    (isLoadingUsers &&
+      !!currentUserResponse &&
+      !("status" in currentUserResponse));
+
+  const getErrorMessage = (
+    queryError: FetchError | ApiErrorResponse | null | undefined,
+    defaultMessage: string
+  ): string | null => {
+    if (!queryError) return null;
+    if (queryError instanceof Error) {
+      return queryError.message;
+    }
+    if (
+      typeof queryError === "object" &&
+      "error" in queryError &&
+      typeof queryError.error === "string"
+    ) {
+      return queryError.error;
+    }
+    return defaultMessage;
+  };
+
+  const primaryError = isCurrentUserError
+    ? getErrorMessage(currentUserError, "Failed to load your profile.")
+    : isUsersError && !isLoadingCurrentUser
+    ? getErrorMessage(usersError, "Failed to load users list.")
+    : null;
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-br from-purple-600 to-blue-500 p-4 text-white">
@@ -138,14 +203,14 @@ export default function Home() {
       </header>
 
       <main className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-6 sm:p-8 rounded-xl shadow-2xl text-center max-w-3xl w-full">
-        {isLoading ? (
+        {isLoading && !primaryError ? (
           <div className="py-10">
             <p className="text-white text-xl">Loading user data...</p>
           </div>
-        ) : error ? (
+        ) : primaryError ? (
           <div className="py-10">
             <h2 className="text-3xl font-bold mb-4 text-gray-800">Error</h2>
-            <p className="text-lg mb-6 text-gray-200">{error}</p>
+            <p className="text-lg mb-6 text-gray-200">{primaryError}</p>
             <button
               onClick={handleTryAgainClick}
               className="w-full max-w-xs mx-auto bg-yellow-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-75 transition duration-150 ease-in-out shadow-md hover:shadow-lg"

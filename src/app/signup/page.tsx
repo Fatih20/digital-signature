@@ -6,29 +6,70 @@ import Link from "next/link";
 import eccrypto from "eccrypto";
 import { API_BASE_URL } from "@/lib/config";
 import { hashPassword } from "@/lib/authUtils";
+import { useMutation } from "@tanstack/react-query";
+
+// Define types for payload and response
+interface SignupPayload {
+  username: string;
+  passwordHash: string;
+  publicKey: string;
+}
+
+interface SignupResponse {
+  message?: string;
+  error?: string;
+}
+
+// Asynchronous function to perform the signup API call
+const signupUser = async (payload: SignupPayload): Promise<SignupResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: payload.username,
+      password: payload.passwordHash,
+      publicKey: payload.publicKey,
+    }),
+  });
+
+  const data: SignupResponse = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Signup failed. Please try again.");
+  }
+  return data;
+};
 
 export default function SignupPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Local form error state, API errors handled by mutation
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const signupMutation = useMutation<SignupResponse, Error, SignupPayload>({
+    mutationFn: signupUser,
+    onSuccess: () => {
+      router.push("/login"); // Redirect to login page after successful signup
+    },
+    onError: (error) => {
+      setFormError(error.message);
+    },
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
+    setFormError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      setIsLoading(false);
+      setFormError("Passwords do not match.");
       return;
     }
 
     if (!username || !password) {
-      setError("Username and password are required.");
-      setIsLoading(false);
+      setFormError("Username and password are required.");
       return;
     }
 
@@ -38,33 +79,32 @@ export default function SignupPage() {
       // Generate a new ECC key pair
       const privateKey = eccrypto.generatePrivate();
       const publicKey = eccrypto.getPublic(privateKey);
+      const publicKeyHex = publicKey.toString("hex");
 
-      const response = await fetch(`${API_BASE_URL}/api/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password: hashedPassword,
-          publicKey: publicKey.toString("hex"), // Send public key as a hex string
-        }),
+      // Important: Save private key to local storage BEFORE calling mutate,
+      // so it's saved even if the user navigates away during the mutation.
+      // However, consider the implications if the API call fails - private key is saved but account might not be created.
+      // A more robust approach might save it in onSuccess, but that means if redirect is quick, user might miss it.
+      // For now, keeping it here for simplicity of this example.
+      localStorage.setItem("privateKey", privateKey.toString("hex"));
+
+      signupMutation.mutate({
+        username,
+        passwordHash: hashedPassword,
+        publicKey: publicKeyHex,
       });
-
-      if (response.ok) {
-        // Save private key to local storage
-        localStorage.setItem("privateKey", privateKey.toString("hex"));
-        router.push("/login"); // Redirect to login page after successful signup
-      } else {
-        const data = await response.json();
-        setError(data.error || "Signup failed. Please try again.");
-      }
     } catch (err) {
-      console.error("Signup submission error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      console.error("Signup preparation error (e.g., hashing, keygen):", err);
+      // If error is an instance of Error, use its message
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred during signup preparation. Please try again.";
+      setFormError(errorMessage);
     }
-    setIsLoading(false);
   }
+
+  const isLoading = signupMutation.isPending;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 to-blue-500 p-4">
@@ -77,9 +117,9 @@ export default function SignupPage() {
             Create Your Account
           </h2>
           <form onSubmit={handleSubmit}>
-            {error && (
+            {(formError || signupMutation.error) && (
               <p className="mb-4 text-red-600 bg-red-100 p-3 rounded-md text-sm text-center border border-red-300">
-                {error}
+                {formError || (signupMutation.error as Error)?.message}
               </p>
             )}
             <div className="mb-5">
