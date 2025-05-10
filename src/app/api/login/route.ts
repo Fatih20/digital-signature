@@ -53,6 +53,13 @@ export async function POST(request: Request) {
       sameSite: "strict",
       path: "/",
     });
+    // Set username cookie
+    response.cookies.set("username", user.name, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    });
 
     return response;
   } catch (error) {

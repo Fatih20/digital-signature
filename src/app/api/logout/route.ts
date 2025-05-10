@@ -5,6 +5,7 @@ export async function POST() {
     const response = NextResponse.json({ success: true });
 
     response.cookies.delete("session");
+    response.cookies.delete("username");
 
     return response;
   } catch (error) {
