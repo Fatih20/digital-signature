@@ -22,6 +22,13 @@
       "when": 1746869626303,
       "tag": "0002_bored_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747498973450,
+      "tag": "0003_omniscient_speed",
+      "breakpoints": true
     }
   ]
 }

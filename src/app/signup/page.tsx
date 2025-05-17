@@ -86,7 +86,10 @@ export default function SignupPage() {
       // However, consider the implications if the API call fails - private key is saved but account might not be created.
       // A more robust approach might save it in onSuccess, but that means if redirect is quick, user might miss it.
       // For now, keeping it here for simplicity of this example.
-      localStorage.setItem("privateKey", privateKey.toString("hex"));
+      localStorage.setItem(
+        `privateKey:${username}`,
+        privateKey.toString("hex")
+      );
 
       signupMutation.mutate({
         username,

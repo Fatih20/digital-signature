@@ -39,5 +39,15 @@
     "tailwindcss": "^4",
     "tsx": "^4.19.4",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "eccrypto",
+      "esbuild",
+      "secp256k1",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }
