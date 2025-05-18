@@ -53,6 +53,15 @@ export async function POST(request: Request) {
       sameSite: "strict",
       path: "/",
     });
+
+    // Set id cookie
+    response.cookies.set("id", `${user.id}`, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    });
+
     // Set username cookie
     response.cookies.set("username", user.name, {
       httpOnly: true,

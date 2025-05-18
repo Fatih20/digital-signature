@@ -7,6 +7,7 @@ import eccrypto from "eccrypto";
 import { API_BASE_URL } from "@/lib/config";
 import { hashPassword } from "@/lib/authUtils";
 import { useMutation } from "@tanstack/react-query";
+import { generateKeyPair } from "@/lib/cryptoUtils";
 
 // Define types for payload and response
 interface SignupPayload {
@@ -76,25 +77,19 @@ export default function SignupPage() {
     try {
       const hashedPassword = await hashPassword(password);
 
-      // Generate a new ECC key pair
-      const privateKey = eccrypto.generatePrivate();
-      const publicKey = eccrypto.getPublic(privateKey);
-      const publicKeyHex = publicKey.toString("hex");
+      const { privateKey, publicKey } = generateKeyPair();
 
       // Important: Save private key to local storage BEFORE calling mutate,
       // so it's saved even if the user navigates away during the mutation.
       // However, consider the implications if the API call fails - private key is saved but account might not be created.
       // A more robust approach might save it in onSuccess, but that means if redirect is quick, user might miss it.
       // For now, keeping it here for simplicity of this example.
-      localStorage.setItem(
-        `privateKey:${username}`,
-        privateKey.toString("hex")
-      );
+      localStorage.setItem(`privateKey:${username}`, privateKey);
 
       signupMutation.mutate({
         username,
         passwordHash: hashedPassword,
-        publicKey: publicKeyHex,
+        publicKey: publicKey,
       });
     } catch (err) {
       console.error("Signup preparation error (e.g., hashing, keygen):", err);

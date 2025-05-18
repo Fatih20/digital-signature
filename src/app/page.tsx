@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/config";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 
 interface User {
   id: number;
@@ -228,11 +230,14 @@ export default function Home() {
                 {users.map((user) => (
                   <li
                     key={user.id}
-                    className="bg-white bg-opacity-25 p-4 rounded-lg shadow hover:shadow-md transition-shadow"
+                    className="bg-white bg-opacity-25 p-4 rounded-lg shadow hover:shadow-md transition-shadow flex justify-between"
                   >
                     <p className="text-xl font-semibold text-gray-800">
                       {user.username}
                     </p>
+                    <Link href={`/chat/${user.id}`} className="text-gray-800">
+                      <MessageCircle />
+                    </Link>
                   </li>
                 ))}
               </ul>
