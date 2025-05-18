@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import db from "@/db";
 import { usersTable, messagesTable } from "@/db/schema";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or, asc } from "drizzle-orm";
 
 interface PostRequestBody {
   data: any; // need types?
@@ -87,7 +87,7 @@ export async function GET(
         )
       )
     )
-    .orderBy(desc(messagesTable.createdAt));
+    .orderBy(asc(messagesTable.createdAt));
 
   return NextResponse.json({
     user: targetUser,

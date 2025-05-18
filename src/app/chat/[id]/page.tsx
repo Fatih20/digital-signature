@@ -300,7 +300,7 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-br from-purple-600 to-blue-500 text-white font-sans">
-      <header className="w-full max-w-3xl flex justify-between items-center py-4 px-4 md:px-2 sticky top-0 z-10 bg-purple-600/80 backdrop-blur-md shadow-lg">
+      <header className="w-full max-w-3xl flex justify-between items-center my-2 py-4 px-4 md:px-2 sticky top-0 z-10">
         <button
           onClick={() => router.push("/")}
           className="p-2 rounded-full hover:bg-white/20 transition-colors"
@@ -316,13 +316,13 @@ export default function ChatPage() {
         <div className="w-10 h-10"> </div>
       </header>
 
-      <main className="flex flex-col flex-grow w-full max-w-3xl bg-white/10 backdrop-filter backdrop-blur-lg shadow-2xl rounded-t-xl overflow-hidden mt-1">
+      <main className="flex flex-col flex-grow w-full max-w-3xl bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg shadow-2xl rounded-t-xl overflow-hidden mt-1">
         {isLoading && !primaryError ? (
           <div className="flex-grow flex flex-col items-center justify-center p-10">
-            <Loader2 className="w-12 h-12 animate-spin text-purple-300 mb-4" />
-            <p className="text-xl text-gray-300">Loading messages...</p>
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mb-4" />
+            <p className="text-xl text-gray-800">Loading messages...</p>
           </div>
-        ) : !privateKey ? (
+        ) : !isLoading && !privateKey ? (
           <div className="flex-grow flex flex-col items-center justify-center p-10 text-center">
             <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
             <h2 className="text-2xl font-bold mb-3 text-red-100">
@@ -349,54 +349,60 @@ export default function ChatPage() {
             <div className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-4">
               {messages.length === 0 && (
                 <div className="text-center py-10">
-                  <p className="text-gray-400">
+                  <p className="text-gray-800">
                     No messages yet. Start the conversation!
                   </p>
                 </div>
               )}
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.senderId === loggedInUser?.id
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
+              {messages.map((msg) => {
+                return (
                   <div
-                    className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-xl shadow ${
+                    key={msg.id}
+                    className={`flex ${
                       msg.senderId === loggedInUser?.id
-                        ? "bg-blue-500 text-white rounded-br-none"
-                        : "bg-gray-700 text-gray-200 rounded-bl-none"
+                        ? "justify-end"
+                        : "justify-start"
                     }`}
                   >
-                    <p className="text-sm break-words">{msg.data.plaintext}</p>
-                    <p
-                      className={`text-xs mt-1 ${
+                    <div
+                      className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-xl shadow ${
                         msg.senderId === loggedInUser?.id
-                          ? "text-blue-200"
-                          : "text-gray-400"
-                      } text-right`}
+                          ? "bg-blue-500 text-white rounded-br-none"
+                          : "bg-gray-700 text-gray-200 rounded-bl-none"
+                      }`}
                     >
-                      {msg.verified === null
-                        ? `${new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}`
-                        : `${new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })} - ${msg.verified ? "Verified" : "Not Verified"}`}
-                    </p>
+                      <p className="text-sm break-words">
+                        {msg.data.plaintext}
+                      </p>
+                      <p
+                        className={`text-xs mt-1 ${
+                          msg.senderId === loggedInUser?.id
+                            ? "text-blue-200"
+                            : "text-gray-400"
+                        } text-right`}
+                      >
+                        {msg.verified === null
+                          ? `${new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}`
+                          : `${new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })} - ${
+                              msg.verified ? "Verified" : "Not Verified"
+                            }`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 
             <form
               onSubmit={handleSendMessage}
-              className="p-4 border-t border-white/20 bg-black/20 backdrop-blur-sm"
+              className="p-4 border-t bg-slate-700 backdrop-blur-sm"
             >
               <div className="flex items-center space-x-3">
                 <input
@@ -404,7 +410,7 @@ export default function ChatPage() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type your message..."
-                  className="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-colors"
+                  className="flex-grow p-3 rounded-lg bg-gray-100 text-gray-800 placeholder-gray-600 focus:border-transparent outline-none transition-colors"
                   disabled={
                     sendMessageMutation.isPending ||
                     !loggedInUser ||
@@ -414,7 +420,7 @@ export default function ChatPage() {
                 <button
                   type="submit"
                   disabled={sendMessageMutation.isPending || !newMessage.trim()}
-                  className="p-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-800 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
                   aria-label="Send message"
                 >
                   {sendMessageMutation.isPending ? (
