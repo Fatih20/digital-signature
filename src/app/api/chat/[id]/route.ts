@@ -3,9 +3,10 @@ import { cookies } from "next/headers";
 import db from "@/db";
 import { usersTable, messagesTable } from "@/db/schema";
 import { eq, and, or, asc } from "drizzle-orm";
+import { VerifiableMessage } from "@/lib/cryptoUtils";
 
 interface PostRequestBody {
-  data: any; // need types?
+  data: VerifiableMessage; // need types?
 }
 
 export async function GET(
@@ -166,6 +167,9 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  // uncomment this for altering message
+  // data.plaintext = `${data.plaintext} - Altered`;
 
   try {
     const newMessages = await db
