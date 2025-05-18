@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/config";
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
@@ -50,6 +50,7 @@ const fetchUsers = async () => {
 
 export default function Home() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const {
     data: currentUserResponse,
@@ -61,6 +62,8 @@ export default function Home() {
     queryKey: ["currentUser"],
     queryFn: fetchCurrentUser,
     retry: 1,
+    staleTime: 0, // Consider the data stale immediately
+    refetchOnMount: true, // Always refetch on component mount
   });
 
   const {
@@ -76,6 +79,8 @@ export default function Home() {
       !!currentUserResponse &&
       !("status" in currentUserResponse && currentUserResponse.status === 401),
     retry: 1,
+    staleTime: 0, // Consider the data stale immediately
+    refetchOnMount: true, // Always refetch on component mount
   });
 
   const username =
@@ -97,6 +102,7 @@ export default function Home() {
       currentUserError instanceof Error &&
       currentUserError.message.includes("Failed to fetch")
     ) {
+      // Network error handling remains the same
     }
   }, [currentUserResponse, isCurrentUserError, currentUserError, router]);
 
@@ -110,11 +116,6 @@ export default function Home() {
     }
   }, [usersResponse, router]);
 
-  useEffect(() => {
-    if (users.length > 0) {
-    }
-  }, [users]);
-
   async function handleLogout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
@@ -123,6 +124,8 @@ export default function Home() {
       });
       if (response.ok) {
         console.log("Logout successful");
+        // Reset the query cache after logout to ensure fresh data on next login
+        queryClient.clear();
       } else {
         console.error(
           "Logout API call failed:",
